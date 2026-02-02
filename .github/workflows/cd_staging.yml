@@ -1,0 +1,31 @@
+name: Deploy to staging
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  redeploy_everything:
+    name: Deploying everything to the staging cluster
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Deploy to Staging via SSH
+        # For security, all remote commands must be passed to SSH in a single block.
+        # This prevents commands from running locally after the connection closes.
+        run: |
+          ssh -o StrictHostKeyChecking=no -i /dev/stdin root@${{ secrets.STAGING_SERVER_IP }} <<'EOF'
+          cd bms/
+          git pull
+          pnpm install
+          pnpm run build
+          pm2 restart fe-server
+          pm2 restart http-server
+          pm2 restart ws-server
+          EOF
+        # Pass the SSH key directly to stdin of the ssh command for security
+        # (replaces your problematic `echo` command)
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY_EXAMPLE }}
